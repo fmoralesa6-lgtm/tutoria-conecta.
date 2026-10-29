@@ -322,8 +322,8 @@ export default function App() {
 
           <div className="footer-author">
             <span>Desarrollo Web · 2026</span>
-            <p>Fredy Leonel Morales Albizures</p>
-            <small>9490-23-16408</small>
+            <p>Fredy Leonel Morales Albizures     9490-23-16408</p>
+             <p>Mauricio Isaí Perez Saban      9490-23-25701</p>
           </div>
         </div>
       </footer>
