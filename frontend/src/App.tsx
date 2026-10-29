@@ -12,17 +12,27 @@ const Tutor = lazy(() => import("./Tutor"));
 const Agenda = lazy(() => import("./Agenda"));
 const Chat = lazy(() => import("./Chat"));
 const Admin = lazy(() => import("./Admin"));
+const Classrooms = lazy(() => import("./Classrooms"));
+
+function homeTab(role: User["role"] | undefined) {
+  if (role === "tutor") return "tutor";
+  if (role === "admin") return "admin";
+  return "catalog";
+}
 
 export default function App() {
   const { state, login, logout, refresh } = useAuth();
   const a = useAction();
-  const [tab, setTab] = useState("catalog");
+
+  // null significa que se utiliza la pantalla inicial correspondiente al rol.
+  const [tab, setTab] = useState<string | null>(null);
   const [chat, setChat] = useState("");
   const [theme, setTheme] = useState(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
 
   const u = state.user;
+  const activeTab = tab ?? homeTab(u?.role);
 
   const roleName = u
     ? {
@@ -32,18 +42,31 @@ export default function App() {
       }[u.role]
     : "";
 
-  const navigation = [
-    ["catalog", "Explorar"],
-    ...(u?.role === "tutor" ? [["tutor", "Mis tutorías"]] : []),
-    ...(u?.role !== "admin"
+  const navigation =
+    u?.role === "student"
       ? [
+          ["catalog", "Explorar"],
+          ["classrooms", "Mis cursos"],
           ["agenda", "Agenda"],
           ["chat", "Mensajes"],
           ["report", "Reportar"],
+          ["profile", "Mi perfil"],
         ]
-      : [["admin", "Administración"]]),
-    ["profile", "Mi perfil"],
-  ];
+      : u?.role === "tutor"
+        ? [
+            ["tutor", "Mis tutorías"],
+            ["classrooms", "Mis tableros"],
+            ["agenda", "Agenda"],
+            ["chat", "Mensajes"],
+            ["report", "Reportar"],
+            ["profile", "Mi perfil"],
+          ]
+        : u?.role === "admin"
+          ? [
+              ["admin", "Administración"],
+              ["profile", "Mi perfil"],
+            ]
+          : [];
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -52,7 +75,9 @@ export default function App() {
 
     try {
       localStorage.setItem("conecta-theme", next);
-    } catch {}
+    } catch {
+      // La aplicación continúa aunque el navegador no permita guardar el tema.
+    }
   }
 
   return (
@@ -66,6 +91,7 @@ export default function App() {
           <span className="brand-mark" aria-hidden="true">
             TC
           </span>
+
           <span className="brand-copy">
             <span className="brand-title">
               Tutoría<span>Conecta</span>
@@ -96,12 +122,13 @@ export default function App() {
                 <strong>{u.name}</strong>
                 <span>{roleName}</span>
               </div>
+
               <button
                 type="button"
                 className="secondary"
                 onClick={() => {
                   logout();
-                  setTab("catalog");
+                  setTab(null);
                   setChat("");
                 }}
               >
@@ -118,9 +145,9 @@ export default function App() {
             {navigation.map(([id, label]) => (
               <button
                 type="button"
-                className={`nav-link ${tab === id ? "is-active" : ""}`}
+                className={`nav-link ${activeTab === id ? "is-active" : ""}`}
                 key={id}
-                aria-current={tab === id ? "page" : undefined}
+                aria-current={activeTab === id ? "page" : undefined}
                 onClick={() => setTab(id)}
               >
                 {label}
@@ -157,11 +184,13 @@ export default function App() {
               <section className="hero login">
                 <div className="login-copy">
                   <p className="eyebrow">TU PRÓXIMO PASO EMPIEZA AQUÍ</p>
+
                   <h1>
                     Aprende algo nuevo.
                     <br />
                     <span>Conecta con tu futuro.</span>
                   </h1>
+
                   <p className="hero-description">
                     Encuentra tutores de idiomas, ciencias, tecnología,
                     deportes y posgrado. Elige tu modalidad y organiza tus
@@ -176,6 +205,7 @@ export default function App() {
 
                   <div className="login-access">
                     <Notice {...a} />
+
                     <GoogleLogin
                       key={theme}
                       theme={theme === "dark" ? "filled_black" : "outline"}
@@ -195,7 +225,7 @@ export default function App() {
                           });
 
                           login(result.token, result.user);
-                          setTab("catalog");
+                          setTab(null);
                           setChat("");
                         }, "Sesión iniciada")
                       }
@@ -205,6 +235,7 @@ export default function App() {
                         })
                       }
                     />
+
                     <p className="login-hint">
                       Ingresa con Google para comenzar.
                     </p>
@@ -215,8 +246,10 @@ export default function App() {
                   <span className="welcome-symbol" aria-hidden="true">
                     ✦
                   </span>
+
                   <p className="eyebrow">UN ESPACIO PARA CRECER</p>
                   <h2>Tu siguiente aprendizaje comienza con una conexión.</h2>
+
                   <ol className="welcome-steps">
                     <li>
                       <span>01</span>
@@ -225,6 +258,7 @@ export default function App() {
                         <p>Explora temas, modalidades y tarifas.</p>
                       </div>
                     </li>
+
                     <li>
                       <span>02</span>
                       <div>
@@ -232,6 +266,7 @@ export default function App() {
                         <p>Elige horarios que se adapten a ti.</p>
                       </div>
                     </li>
+
                     <li>
                       <span>03</span>
                       <div>
@@ -249,25 +284,30 @@ export default function App() {
             <Suspended />
           ) : !u.onboarding ? (
             <Onboarding />
-          ) : tab === "tutor" && u.role === "tutor" ? (
+          ) : activeTab === "classrooms" &&
+            (u.role === "tutor" || u.role === "student") ? (
+            <Classrooms />
+          ) : activeTab === "tutor" && u.role === "tutor" ? (
             <Tutor />
-          ) : tab === "agenda" && u.role !== "admin" ? (
+          ) : activeTab === "agenda" && u.role !== "admin" ? (
             <Agenda />
-          ) : tab === "chat" && u.role !== "admin" ? (
+          ) : activeTab === "chat" && u.role !== "admin" ? (
             <Chat initial={chat} />
-          ) : tab === "admin" && u.role === "admin" ? (
+          ) : activeTab === "admin" && u.role === "admin" ? (
             <Admin />
-          ) : tab === "profile" ? (
+          ) : activeTab === "profile" ? (
             <Profile />
-          ) : tab === "report" && u.role !== "admin" ? (
+          ) : activeTab === "report" && u.role !== "admin" ? (
             <ReportForm />
-          ) : (
+          ) : activeTab === "catalog" && u.role === "student" ? (
             <Catalog
               openChat={(id) => {
                 setChat(id);
                 setTab("chat");
               }}
             />
+          ) : (
+            <p>Esta sección no está disponible para tu perfil.</p>
           )}
         </Suspense>
       </main>
@@ -279,6 +319,7 @@ export default function App() {
             <p>Aprendizaje con conexión humana.</p>
             <small>Horarios de Guatemala · Presupuestos en quetzales</small>
           </div>
+
           <div className="footer-author">
             <span>Desarrollo Web · 2026</span>
             <p>Fredy Leonel Morales Albizures</p>

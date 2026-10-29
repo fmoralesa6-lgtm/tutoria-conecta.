@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { api } from "./api";
 import { useAuth } from "./auth";
-import Classrooms from "./Classrooms";
 import {
   Field,
   Notice,
@@ -28,55 +27,46 @@ export default function Catalog({
   openChat: (id: string) => void;
 }) {
   const [filter, setFilter] = useState("");
-  const [selected, setSelected] =
-    useState<Offer | null>(null);
+  const [selected, setSelected] = useState<Offer | null>(null);
 
   const offers = useData<Offer[]>("/offers" + filter);
   const cats = useData<Category[]>("/categories");
 
-  const shared = new URLSearchParams(
-    location.search,
-  ).get("tutor");
+  const shared = new URLSearchParams(location.search).get("tutor");
 
   const displayed = offers.data?.filter(
-    (o) => !shared || o.tutor_id === shared,
+    (offer) => !shared || offer.tutor_id === shared,
   );
 
   return (
     <>
-      <Classrooms />
       <div className="hero">
-        <p className="eyebrow">
-          APRENDE CERCA. LLEGA LEJOS.
-        </p>
+        <p className="eyebrow">APRENDE CERCA. LLEGA LEJOS.</p>
         <h1>Encuentra a tu próximo tutor.</h1>
-        <p>
-          Clases virtuales, en sede o en tu casa. Una
-          agenda que se adapta a ti.
-        </p>
+        <p>Clases virtuales, en sede o en tu casa. Una agenda que se adapta a ti.</p>
       </div>
 
       <form
         className="panel filters"
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={(event) => {
+          event.preventDefault();
 
-          const f = new FormData(e.currentTarget);
-          const q = new URLSearchParams();
+          const formData = new FormData(event.currentTarget);
+          const query = new URLSearchParams();
 
-          for (const [k, v] of f) {
-            if (String(v)) q.set(k, String(v));
+          for (const [key, value] of formData) {
+            if (String(value)) query.set(key, String(value));
           }
 
-          setFilter("?" + q);
+          setFilter("?" + query);
         }}
       >
         <Field label="Categoría">
           <select name="category">
             <option value="">Todas</option>
-            {cats.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {cats.data?.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
@@ -85,13 +75,9 @@ export default function Catalog({
         <Field label="Modalidad">
           <select name="modality">
             <option value="">Todas</option>
-            {[
-              "virtual",
-              "tutor_home",
-              "student_home",
-            ].map((m) => (
-              <option key={m} value={m}>
-                {labels[m]}
+            {["virtual", "tutor_home", "student_home"].map((modality) => (
+              <option key={modality} value={modality}>
+                {labels[modality]}
               </option>
             ))}
           </select>
@@ -106,30 +92,15 @@ export default function Catalog({
         </Field>
 
         <Field label="Radio de cercanía (km)">
-          <input
-            name="radius"
-            type="number"
-            min="0.1"
-            step="0.1"
-          />
+          <input name="radius" type="number" min="0.1" step="0.1" />
         </Field>
 
         <Field label="Estrellas mínimas">
-          <input
-            name="rating"
-            type="number"
-            min="0"
-            max="5"
-            step="0.1"
-          />
+          <input name="rating" type="number" min="0" max="5" step="0.1" />
         </Field>
 
         <Field label="Reseñas mínimas">
-          <input
-            name="reviews"
-            type="number"
-            min="0"
-          />
+          <input name="reviews" type="number" min="0" />
         </Field>
 
         <button>Buscar</button>
@@ -139,45 +110,31 @@ export default function Catalog({
 
       {shared && (
         <p>
-          Perfil compartido.{" "}
-          <a href={location.pathname}>
-            Ver todos los tutores
-          </a>
+          Perfil compartido. <a href={location.pathname}>Ver todos los tutores</a>
         </p>
       )}
 
       <div className="grid cards">
-        {displayed?.map((o) => (
-          <article className="panel" key={o.id}>
-            <span className="pill">{o.category}</span>
-            <h2>{o.title}</h2>
+        {displayed?.map((offer) => (
+          <article className="panel" key={offer.id}>
+            <span className="pill">{offer.category}</span>
+            <h2>{offer.title}</h2>
 
             <div className="identity">
-              <img src={o.picture} alt="" />
-              <strong>{o.name}</strong>
+              <img src={offer.picture} alt="" />
+              <strong>{offer.name}</strong>
             </div>
 
-            <p>{o.description}</p>
+            <p>{offer.description}</p>
             <p>
-              ★ {Number(o.rating).toFixed(1)} ·{" "}
-              {o.review_count} reseñas
+              ★ {Number(offer.rating).toFixed(1)} · {offer.review_count} reseñas
             </p>
-            <p>
-              {o.distance_km.toFixed(1)} km de cercanía
-            </p>
-            <p>
-              {o.modalities
-                .map((m) => labels[m])
-                .join(" · ")}
-            </p>
+            <p>{offer.distance_km.toFixed(1)} km de cercanía</p>
+            <p>{offer.modalities.map((modality) => labels[modality]).join(" · ")}</p>
 
             <div className="card-bottom">
-              <strong>
-                {money(o.hourly_rate)} / hora
-              </strong>
-              <button onClick={() => setSelected(o)}>
-                Ver tutoría
-              </button>
+              <strong>{money(offer.hourly_rate)} / hora</strong>
+              <button onClick={() => setSelected(offer)}>Ver tutoría</button>
             </div>
           </article>
         ))}
@@ -185,8 +142,8 @@ export default function Catalog({
 
       {displayed?.length === 0 && (
         <p>
-          No hay ofertas que coincidan. Los tutores deben
-          estar aprobados y publicar una oferta.
+          No hay ofertas que coincidan. Los tutores deben estar aprobados y
+          publicar una oferta.
         </p>
       )}
 
@@ -205,7 +162,7 @@ export default function Catalog({
 }
 
 function Detail({
-  offer: o,
+  offer,
   close,
   openChat,
 }: {
@@ -214,18 +171,13 @@ function Detail({
   openChat: (id: string) => void;
 }) {
   const { state } = useAuth();
-  const a = useAction();
+  const action = useAction();
 
-  const reviews = useData<Review[]>(
-    "/tutors/" + o.tutor_id + "/reviews",
-  );
-
-  const availability = useData<Block[]>(
-    "/availability/" + o.tutor_id,
-  );
+  const reviews = useData<Review[]>(`/tutors/${offer.tutor_id}/reviews`);
+  const availability = useData<Block[]>(`/availability/${offer.tutor_id}`);
 
   const share = encodeURIComponent(
-    `${o.name}: ${o.title}. Desde ${money(o.hourly_rate)}/hora. ${location.origin}/?tutor=${o.tutor_id}`,
+    `${offer.name}: ${offer.title}. Desde ${money(offer.hourly_rate)}/hora. ${location.origin}/?tutor=${offer.tutor_id}`,
   );
 
   return (
@@ -240,30 +192,29 @@ function Detail({
           Cerrar
         </button>
 
-        <h1>{o.title}</h1>
-        <h2>{o.name}</h2>
-        <p>{o.bio}</p>
-        <p>{o.description}</p>
+        <h1>{offer.title}</h1>
+        <h2>{offer.name}</h2>
+        <p>{offer.bio}</p>
+        <p>{offer.description}</p>
 
         <a
           className="button secondary"
-          href={"https://wa.me/?text=" + share}
+          href={`https://wa.me/?text=${share}`}
           target="_blank"
           rel="noreferrer"
         >
           Compartir por WhatsApp
         </a>
 
-        <Notice {...a} />
+        <Notice {...action} />
 
         <h3>Disponibilidad semanal · Guatemala</h3>
-
         <Status {...availability} />
 
-        {availability.data?.map((b, i) => (
-          <p key={i}>
-            {days[b.weekday]}: {clock(b.start_min)}–
-            {clock(b.end_min)}
+        {availability.data?.map((block, index) => (
+          <p key={index}>
+            {days[block.weekday]}: {clock(block.start_min)}–
+            {clock(block.end_min)}
           </p>
         ))}
 
@@ -271,13 +222,14 @@ function Detail({
           <>
             <button
               onClick={() =>
-                void a.run(async () => {
-                  const c = await api<Conversation>(
+                void action.run(async () => {
+                  const conversation = await api<Conversation>(
                     "/conversations",
                     "POST",
-                    { tutor_id: o.tutor_id },
+                    { tutor_id: offer.tutor_id },
                   );
-                  openChat(c.id);
+
+                  openChat(conversation.id);
                   close();
                 }, "Conversación abierta")
               }
@@ -285,25 +237,22 @@ function Detail({
               Conversar con tutor
             </button>
 
-            <BookingForm offer={o} />
+            <BookingForm offer={offer} />
           </>
         )}
 
         <h3>Reseñas del tutor</h3>
-
         <Status {...reviews} />
 
-        {reviews.data?.length === 0 && (
-          <p>Todavía no tiene reseñas.</p>
-        )}
+        {reviews.data?.length === 0 && <p>Todavía no tiene reseñas.</p>}
 
-        {reviews.data?.map((r, i) => (
-          <article className="review" key={i}>
+        {reviews.data?.map((review, index) => (
+          <article className="review" key={index}>
             <strong>
-              {r.name} · {"★".repeat(r.stars)}
+              {review.name} · {"★".repeat(review.stars)}
             </strong>
-            <p>{r.comment}</p>
-            <small>{date(r.created_at)}</small>
+            <p>{review.comment}</p>
+            <small>{date(review.created_at)}</small>
           </article>
         ))}
       </section>
@@ -311,10 +260,8 @@ function Detail({
   );
 }
 
-export function clock(n: number) {
-  return `${Math.floor(n / 60)
+export function clock(minutes: number) {
+  return `${Math.floor(minutes / 60)
     .toString()
-    .padStart(2, "0")}:${(n % 60)
-    .toString()
-    .padStart(2, "0")}`;
+    .padStart(2, "0")}:${(minutes % 60).toString().padStart(2, "0")}`;
 }
