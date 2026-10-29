@@ -20,6 +20,7 @@ const schema = z
       "student_home",
     ]),
     weeks: z.union([
+      z.literal(1),
       z.literal(4),
       z.literal(8),
     ]),
@@ -584,6 +585,91 @@ bookings.post(
 
     res.json({
       message: "Sesión marcada como impartida",
+    });
+  },
+);
+
+bookings.post(
+  "/sessions/:id/not-held",
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const body = z
+      .object({
+        absent_party: z.enum(["student", "tutor", "both", "technical"]),
+        details: z.string().trim().min(10).max(2000),
+      })
+      .parse(req.body);
+
+    const result = await tx(async (client) => {
+      const session = (
+        await client.query(
+          `SELECT s.*,o.title
+           FROM sessions s
+           JOIN subscriptions sub ON sub.id=s.subscription_id
+           JOIN offers o ON o.id=sub.offer_id
+           WHERE s.id=$1
+           FOR UPDATE OF s`,
+          [id],
+        )
+      ).rows[0];
+
+      if (!session) fail(404, "Sesión no encontrada");
+      if (![session.student_id, session.tutor_id].includes(req.user.id)) {
+        fail(403, "Esta sesión no te pertenece");
+      }
+      if (session.status !== "approved" || new Date(session.end_at) > new Date()) {
+        fail(409, "Solo puedes reportar una sesión aprobada que ya terminó");
+      }
+
+      await client.query(
+        `UPDATE sessions
+         SET status='not_held',absence_party=$2,absence_details=$3
+         WHERE id=$1`,
+        [id, body.absent_party, body.details],
+      );
+
+      let reportCreated = false;
+      const targetId =
+        body.absent_party === "student"
+          ? session.student_id
+          : body.absent_party === "tutor"
+            ? session.tutor_id
+            : null;
+
+      if (targetId && targetId !== req.user.id) {
+        await client.query(
+          `INSERT INTO reports(
+             reporter_id,target_id,reason,evidence,session_id
+           ) VALUES($1,$2,'inasistencia',$3,$4)
+           ON CONFLICT (session_id) WHERE session_id IS NOT NULL DO NOTHING`,
+          [
+            req.user.id,
+            targetId,
+            `Sesión: ${session.title}. Fecha: ${new Date(session.start_at).toLocaleString("es-GT", { timeZone: "America/Guatemala" })}. ${body.details}`,
+            id,
+          ],
+        );
+        reportCreated = true;
+      }
+
+      await client.query(
+        `INSERT INTO audit(actor_id,action,target,detail)
+         VALUES($1,$2,$3,$4)`,
+        [
+          req.user.id,
+          "session.not_held",
+          id,
+          JSON.stringify({ ...body, reportCreated }),
+        ],
+      );
+      return { reportCreated };
+    });
+
+    res.json({
+      message: result.reportCreated
+        ? "Sesión registrada como no impartida y reporte enviado a Administración"
+        : "Sesión registrada como no impartida",
+      ...result,
     });
   },
 );

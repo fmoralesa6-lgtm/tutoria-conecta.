@@ -59,6 +59,8 @@ export interface Session {
   start_at: string;
   end_at: string;
   status: string;
+  absence_party?: "student" | "tutor" | "both" | "technical" | null;
+  absence_details?: string | null;
   modality: string;
   class_cost: number;
   travel_cost: number;
@@ -85,6 +87,13 @@ export interface Message {
   body: string;
   created_at: string;
   read_at: string | null;
+  attachments?: ChatAttachment[];
+}
+export interface ChatAttachment {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
 }
 export interface Report {
   id: string;

@@ -12,6 +12,12 @@ test("8 semanas atraviesan año sin cambiar hora local", () => {
   assert.equal(s.length, 8);
   assert.equal(s[7].start, "2027-02-15T15:00:00.000Z");
 });
+test("1 semana con los siete días crea siete sesiones diarias", () => {
+  const s = recurring("2026-10-26", 1, [0, 1, 2, 3, 4, 5, 6], 540, 60);
+  assert.equal(s.length, 7);
+  assert.equal(s[0].start, "2026-10-26T15:00:00.000Z");
+  assert.equal(s[6].start, "2026-11-01T15:00:00.000Z");
+});
 test("la sesión completa debe caber en la disponibilidad", () => {
   const b = [{ weekday: 1, start_min: 540, end_min: 660 }];
   assert(fits(b, 1, 540, 120));

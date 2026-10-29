@@ -11,6 +11,8 @@ type Session = {
   start_at: string;
   end_at: string;
   status: string;
+  absence_party?: string | null;
+  absence_details?: string | null;
 };
 
 type Enrollment = {
@@ -111,7 +113,7 @@ export default function StudentEnrollments({
                 <strong>Modalidad:</strong>{" "}
                 {labels[sub.modality] || sub.modality}
                 {" · "}
-                {sub.weeks} semanas
+                {sub.weeks} {sub.weeks === 1 ? "semana" : "semanas"}
               </p>
 
               <p>
@@ -135,6 +137,8 @@ export default function StudentEnrollments({
                   ).length
                 }{" "}
                 impartidas ·{" "}
+                {sub.sessions.filter((s) => s.status === "not_held").length}{" "}
+                no impartidas ·{" "}
                 {
                   sub.sessions.filter(
                     (s) => s.status === "cancelled",
@@ -164,6 +168,7 @@ export default function StudentEnrollments({
                           <th scope="col">Fin</th>
                           <th scope="col">Duración</th>
                           <th scope="col">Estado</th>
+                          <th scope="col">Motivo</th>
                         </tr>
                       </thead>
 
@@ -194,6 +199,12 @@ export default function StudentEnrollments({
                             <td>
                               {labels[session.status] ||
                                 session.status}
+                            </td>
+                            <td>
+                              {session.status === "not_held"
+                                ? (session.absence_party || "") + ": " +
+                                  (session.absence_details || "Sin detalle")
+                                : "—"}
                             </td>
                           </tr>
                         ))}

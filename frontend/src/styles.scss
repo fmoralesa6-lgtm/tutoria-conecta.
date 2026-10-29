@@ -811,6 +811,21 @@ legend {
   }
 }
 
+.chat-attachment {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+
+  img {
+    display: block;
+    max-width: min(100%, 320px);
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

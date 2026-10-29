@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { api, BASE } from "./api";
+import {
+  api,
+  BASE,
+  deleteChatAttachment,
+  downloadChatAttachment,
+  uploadChatAttachment,
+} from "./api";
 import { useAuth } from "./auth";
 import { Notice, Status, useData, date } from "./ui";
-import type { Conversation, Message } from "./types";
+import type { ChatAttachment, Conversation, Message } from "./types";
 export default function Chat({ initial }: { initial: string }) {
   const { state, refresh } = useAuth(),
     q = useData<Conversation[]>("/conversations");
@@ -12,9 +18,11 @@ export default function Chat({ initial }: { initial: string }) {
     [error, setError] = useState(""),
     [connected, setConnected] = useState(false),
     [text, setText] = useState(""),
+    [files, setFiles] = useState<File[]>([]),
     [busy, setBusy] = useState(false);
   const socket = useRef<Socket | null>(null),
-    selectedRef = useRef(selected);
+    selectedRef = useRef(selected),
+    fileInput = useRef<HTMLInputElement | null>(null);
   selectedRef.current = selected;
   const read = (id: string) => {
     if (document.visibilityState === "visible")
@@ -127,7 +135,14 @@ export default function Chat({ initial }: { initial: string }) {
                     }
                     key={m.id}
                   >
-                    <p>{m.body}</p>
+                    {m.body && <p>{m.body}</p>}
+                    {m.attachments?.map((attachment) => (
+                      <MessageAttachment
+                        key={attachment.id}
+                        conversationId={m.conversation_id}
+                        attachment={attachment}
+                      />
+                    ))}
                     <small>
                       {date(m.created_at)}{" "}
                       {m.sender_id === state.user?.id &&
@@ -139,25 +154,61 @@ export default function Chat({ initial }: { initial: string }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (!text.trim() && files.length === 0) return;
                   setBusy(true);
-                  socket.current
-                    ?.timeout(10000)
-                    .emit(
-                      "chat:send",
-                      { conversation_id: selected, body: text },
-                      (
-                        err: Error | null,
-                        r: { ok: boolean; message?: string },
-                      ) => {
-                        setBusy(false);
-                        if (err || !r?.ok)
-                          setError(
-                            r?.message ||
-                              "No se confirmó el envío. Revisa el historial antes de reenviar.",
-                          );
-                        else setText("");
-                      },
-                    );
+                  void (async () => {
+                    const uploaded: ChatAttachment[] = [];
+                    try {
+                      for (const file of files) {
+                        uploaded.push(
+                          await uploadChatAttachment(selected, file),
+                        );
+                      }
+                      if (!socket.current) throw Error("Chat desconectado");
+                      socket.current.timeout(15000).emit(
+                        "chat:send",
+                        {
+                          conversation_id: selected,
+                          body: text.trim(),
+                          attachment_ids: uploaded.map((item) => item.id),
+                        },
+                        (
+                          err: Error | null,
+                          result: { ok: boolean; message?: string },
+                        ) => {
+                          setBusy(false);
+                          if (err || !result?.ok) {
+                            setError(
+                              result?.message ||
+                                "No se confirmó el envío. Revisa el historial antes de reenviar.",
+                            );
+                            void Promise.all(
+                              uploaded.map((item) =>
+                                deleteChatAttachment(selected, item.id).catch(
+                                  () => undefined,
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          setText("");
+                          setFiles([]);
+                          setError("");
+                          if (fileInput.current) fileInput.current.value = "";
+                        },
+                      );
+                    } catch (error) {
+                      await Promise.all(
+                        uploaded.map((item) =>
+                          deleteChatAttachment(selected, item.id).catch(
+                            () => undefined,
+                          ),
+                        ),
+                      );
+                      setBusy(false);
+                      setError((error as Error).message);
+                    }
+                  })();
                 }}
               >
                 <label className="field">
@@ -165,11 +216,77 @@ export default function Chat({ initial }: { initial: string }) {
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    required
                     maxLength={2000}
                   />
                 </label>
-                <button disabled={!connected || busy}>Enviar</button>
+                <label className="field">
+                  <span>Adjuntar PDF o imágenes (máximo 5 archivos de 5 MB)</span>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    multiple
+                    disabled={busy}
+                    onChange={(e) => {
+                      const incoming = Array.from(e.target.files || []);
+                      const combined = [...files, ...incoming];
+                      const allowed = new Set([
+                        "application/pdf",
+                        "image/jpeg",
+                        "image/png",
+                        "image/webp",
+                      ]);
+                      if (combined.length > 5) {
+                        setError("Puedes adjuntar como máximo 5 archivos.");
+                        e.target.value = "";
+                        return;
+                      }
+                      const invalid = combined.find(
+                        (file) =>
+                          !allowed.has(file.type) ||
+                          file.size > 5 * 1024 * 1024,
+                      );
+                      if (invalid) {
+                        setError(
+                          "Cada adjunto debe ser PDF, JPG, PNG o WEBP y pesar hasta 5 MB.",
+                        );
+                        e.target.value = "";
+                        return;
+                      }
+                      setError("");
+                      setFiles(combined);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {files.length > 0 && (
+                  <ul>
+                    {files.map((file, index) => (
+                      <li key={`${file.name}-${index}`}>
+                        {file.name} · {(file.size / (1024 * 1024)).toFixed(2)} MB
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            setFiles((current) =>
+                              current.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          Quitar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  disabled={
+                    !connected || busy || (!text.trim() && files.length === 0)
+                  }
+                >
+                  Enviar
+                </button>
               </form>
             </>
           ) : (
@@ -178,5 +295,51 @@ export default function Chat({ initial }: { initial: string }) {
         </section>
       </div>
     </>
+  );
+}
+
+function MessageAttachment({
+  conversationId,
+  attachment,
+}: {
+  conversationId: string;
+  attachment: ChatAttachment;
+}) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    void downloadChatAttachment(conversationId, attachment.id)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch((e: Error) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [conversationId, attachment.id]);
+
+  if (error) return <p>{attachment.file_name}: {error}</p>;
+  if (!url) return <p role="status">Cargando {attachment.file_name}…</p>;
+
+  return (
+    <div className="chat-attachment">
+      {attachment.mime_type.startsWith("image/") && (
+        <a href={url} target="_blank" rel="noreferrer">
+          <img src={url} alt={attachment.file_name} />
+        </a>
+      )}
+      <a href={url} download={attachment.file_name}>
+        {attachment.file_name} ·{" "}
+        {(attachment.size_bytes / (1024 * 1024)).toFixed(2)} MB
+      </a>
+    </div>
   );
 }

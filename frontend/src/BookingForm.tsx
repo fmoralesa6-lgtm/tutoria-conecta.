@@ -163,6 +163,7 @@ export default function BookingForm({
                 change({ weeks: Number(e.target.value) })
               }
             >
+              <option value={1}>1 semana</option>
               <option value={4}>4 semanas</option>
               <option value={8}>8 semanas</option>
             </select>
@@ -196,6 +197,9 @@ export default function BookingForm({
 
         <fieldset>
           <legend>Días fijos</legend>
+          {settings.weeks === 1 && (
+            <p>Para una clase diaria, selecciona los siete días.</p>
+          )}
 
           {days.map((day, index) => (
             <label className="check" key={day}>

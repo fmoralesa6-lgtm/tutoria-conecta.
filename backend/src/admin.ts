@@ -79,7 +79,9 @@ admin.get("/users/:id/subscriptions", async (req, res) => {
                'id',s.id,
                'start_at',s.start_at,
                'end_at',s.end_at,
-               'status',s.status
+               'status',s.status,
+               'absence_party',s.absence_party,
+               'absence_details',s.absence_details
              )
              ORDER BY s.start_at,s.id
            )

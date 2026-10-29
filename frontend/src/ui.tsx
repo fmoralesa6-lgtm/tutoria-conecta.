@@ -16,6 +16,7 @@ export const labels: Record<string, string> = {
   pending: "Pendiente",
   approved: "Aprobada",
   completed: "Impartida",
+  not_held: "No impartida",
   cancelled: "Cancelada",
   open: "Abierta",
   closed: "Cerrada",

@@ -32,6 +32,7 @@ export default function Agenda() {
     pending: "#b16b0c",
     approved: "#137c66",
     completed: "#385dc9",
+    not_held: "#ad334d",
     cancelled: "#7f8c89",
   };
   const events = q.data?.map((s) => ({
@@ -102,6 +103,19 @@ export default function Agenda() {
             Presupuesto del bloque: clases {money(selected.class_cost)} +
             traslado {money(selected.travel_cost)}
           </p>
+          {selected.status === "not_held" && (
+            <div className="alert error">
+              <strong>Motivo registrado: </strong>
+              {selected.absence_party === "student"
+                ? "El estudiante no asistió"
+                : selected.absence_party === "tutor"
+                  ? "El tutor no asistió"
+                  : selected.absence_party === "both"
+                    ? "Ninguna de las dos partes asistió"
+                    : "Problema técnico"}
+              <p>{selected.absence_details}</p>
+            </div>
+          )}
           {state.user?.role === "tutor" && selected.status === "pending" && (
             <button
               disabled={a.busy}
@@ -149,6 +163,51 @@ export default function Agenda() {
               >
                 Marcar impartida
               </button>
+            )}
+          {selected.status === "approved" &&
+            new Date(selected.end_at) <= new Date() && (
+              <form
+                className="panel"
+                key={selected.id}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = new FormData(e.currentTarget);
+                  act(() =>
+                    api("/sessions/" + selected.id + "/not-held", "POST", {
+                      absent_party: form.get("absent_party"),
+                      details: form.get("details"),
+                    }),
+                  );
+                }}
+              >
+                <h3>Registrar sesión no impartida</h3>
+                <Field label="¿Qué ocurrió?">
+                  <select
+                    name="absent_party"
+                    defaultValue={
+                      state.user?.role === "tutor" ? "student" : "tutor"
+                    }
+                  >
+                    <option value="student">El estudiante no asistió</option>
+                    <option value="tutor">El tutor no asistió</option>
+                    <option value="both">Ninguna de las dos partes asistió</option>
+                    <option value="technical">Problema técnico</option>
+                  </select>
+                </Field>
+                <Field label="Explica brevemente el motivo">
+                  <textarea
+                    name="details"
+                    minLength={10}
+                    maxLength={2000}
+                    required
+                  />
+                </Field>
+                <p>
+                  Si indicas que faltó la otra persona, se enviará un reporte
+                  de inasistencia a Administración.
+                </p>
+                <button disabled={a.busy}>Guardar resultado</button>
+              </form>
             )}
           {state.user?.role === "student" &&
             selected.status === "completed" &&

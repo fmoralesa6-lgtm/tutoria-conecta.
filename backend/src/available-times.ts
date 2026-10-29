@@ -8,7 +8,7 @@ export const availableTimes = Router();
 
 const schema = z.object({
   offer_id: z.string().uuid(),
-  weeks: z.union([z.literal(4), z.literal(8)]),
+  weeks: z.union([z.literal(1), z.literal(4), z.literal(8)]),
   start_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
