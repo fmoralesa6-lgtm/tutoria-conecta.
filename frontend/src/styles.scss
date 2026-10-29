@@ -1838,3 +1838,27 @@ details[open] > summary {
     scroll-behavior: auto !important;
   }
 }
+
+.calendar .fc {
+  .fc-timegrid-event .fc-event-main {
+    overflow: hidden;
+  }
+
+  .fc-timegrid-event .agenda-event-content {
+    height: 100%;
+    overflow: hidden;
+  }
+
+.fc-timegrid-event .agenda-event-content strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+  .fc-timegrid-event .agenda-event-time,
+  .fc-timegrid-event .agenda-event-status {
+    flex-shrink: 0;
+  }
+}
