@@ -24,7 +24,6 @@ export default function App() {
   const { state, login, logout, refresh } = useAuth();
   const a = useAction();
 
-  // null significa que se utiliza la pantalla inicial correspondiente al rol.
   const [tab, setTab] = useState<string | null>(null);
   const [chat, setChat] = useState("");
   const [theme, setTheme] = useState(
@@ -70,13 +69,14 @@ export default function App() {
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
+
     document.documentElement.dataset.theme = next;
     setTheme(next);
 
     try {
       localStorage.setItem("conecta-theme", next);
     } catch {
-      // La aplicación continúa aunque el navegador no permita guardar el tema.
+      // Permite continuar si el navegador restringe el almacenamiento.
     }
   }
 
@@ -96,6 +96,7 @@ export default function App() {
             <span className="brand-title">
               Tutoría<span>Conecta</span>
             </span>
+
             <span className="brand-caption">Aprender nos conecta</span>
           </span>
         </a>
@@ -204,7 +205,7 @@ export default function App() {
                   </div>
 
                   <div className="login-access">
-                    <Notice {...a} />
+                    <Notice error={a.error} />
 
                     <GoogleLogin
                       key={theme}
@@ -227,7 +228,7 @@ export default function App() {
                           login(result.token, result.user);
                           setTab(null);
                           setChat("");
-                        }, "Sesión iniciada")
+                        })
                       }
                       onError={() =>
                         void a.run(async () => {
@@ -248,6 +249,7 @@ export default function App() {
                   </span>
 
                   <p className="eyebrow">UN ESPACIO PARA CRECER</p>
+
                   <h2>Tu siguiente aprendizaje comienza con una conexión.</h2>
 
                   <ol className="welcome-steps">
@@ -322,8 +324,8 @@ export default function App() {
 
           <div className="footer-author">
             <span>Desarrollo Web · 2026</span>
-            <p>Fredy Leonel Morales Albizures     9490-23-16408</p>
-             <p>Mauricio Isaí Perez Saban      9490-23-25701</p>
+            <p>Fredy Leonel Morales Albizures 9490-23-16408</p>
+            <p>Mauricio Isaí Perez Saban 9490-23-25701</p>
           </div>
         </div>
       </footer>
